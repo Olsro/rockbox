@@ -737,7 +737,7 @@ static int dirbrowse(void)
         tc.selected_item = gui_synclist_get_sel_pos(&tree_lists);
         bool shuffleAll = false;
         #ifdef HAVE_TAGCACHE
-            if (id3db && button == ACTION_STD_OK) {
+            if (id3db && tc.dirlevel == 0 && (button == ACTION_STD_OK || button == ACTION_STD_CONTEXT)) {
                 struct entry *entry = tree_get_entry_at(&tc, tc.selected_item);
                 shuffleAll = entry && !strcmp(entry->name,"Shuffle Songs");
                 if (shuffleAll) {
