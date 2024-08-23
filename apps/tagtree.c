@@ -114,6 +114,9 @@ enum variables {
 #define UNIQBUF_SIZE (64*1024)
 static uint32_t uniqbuf[UNIQBUF_SIZE / sizeof(uint32_t)];
 
+/* Should be enough to handle very large librairies */
+static bool selectiveRandomPlaylistIndexes[128*1024];
+
 #define MAX_TAGS 5
 #define MAX_MENU_ID_SIZE 32
 
@@ -2102,11 +2105,9 @@ int tagtree_get_filename(struct tree_context* c, char *buf, int buflen)
     return 0;
 }
 
-
 static bool insert_all_playlist(struct tree_context *c,
                                 const char* playlist, bool new_playlist,
-                                int position, bool queue)
-{
+                                int position, bool queue) {
     struct tagcache_search tcs;
     int i, n;
     int fd = -1;
@@ -2114,82 +2115,101 @@ static bool insert_all_playlist(struct tree_context *c,
     char buf[MAX_PATH];
 
     cpu_boost(true);
-    if (!tagcache_search(&tcs, tag_filename))
-    {
+    if (!tagcache_search(&tcs, tag_filename)) {
         splash(HZ, ID2P(LANG_TAGCACHE_BUSY));
         cpu_boost(false);
         return false;
     }
 
-    if (playlist == NULL && position == PLAYLIST_REPLACE)
-    {
-        if (playlist_remove_all_tracks(NULL) == 0)
+    if (playlist == NULL && position == PLAYLIST_REPLACE) {
+        if (playlist_remove_all_tracks(NULL) == 0) {
             position = PLAYLIST_INSERT_LAST;
-        else
-        {
+        } else {
             cpu_boost(false);
             return false;
         }
-    }
-    else if (playlist != NULL)
-    {
-        if (new_playlist)
+    } else if (playlist != NULL) {
+        if (new_playlist) {
             fd = open_utf8(playlist, O_CREAT|O_WRONLY|O_TRUNC);
-        else
+        } else {
             fd = open(playlist, O_CREAT|O_WRONLY|O_APPEND, 0666);
-
-        if(fd < 0)
-        {
+        }
+        if (fd < 0) {
             cpu_boost(false);
             return false;
         }
     }
-
     last_tick = current_tick + HZ/2; /* Show splash after 0.5 seconds have passed */
     splash_progress_set_delay(HZ / 2); /* wait 1/2 sec before progress */
     n = c->filesindir;
-    for (i = 0; i < n; i++)
-    {
+    bool fillRandomly = false;
+    if (playlist == NULL) {
+        struct playlist_info *currentPlaylist = playlist_get_current();
+        bool willExceed = n > currentPlaylist->max_playlist_size;
+        fillRandomly = willExceed;
 
+        if (fillRandomly) {
+            int maxAvailableSpace = currentPlaylist->max_playlist_size - currentPlaylist->amount;
+            if (maxAvailableSpace == 0) {
+                // It will fail later gracefully when trying to insert
+                for (i = 0; i < n; i++) {
+                    selectiveRandomPlaylistIndexes[i] = true;
+                }
+            } else {
+                for (i = 0; i < n; i++) {
+                    selectiveRandomPlaylistIndexes[i] = false;
+                }
+                i = 0;
+                srand(current_tick);
+                while (true) {
+                    int randomNumber = rand() % n;
+                    if (selectiveRandomPlaylistIndexes[randomNumber]) {
+                        continue;
+                    }
+                    selectiveRandomPlaylistIndexes[randomNumber] = true;
+                    i++;
+                    if (i >= maxAvailableSpace) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    for (i = 0; i < n; i++) {
         splash_progress(i, n, "%s (%s)", str(LANG_WAIT), str(LANG_OFF_ABORT));
-        if (TIME_AFTER(current_tick, last_tick + HZ/4))
-        {
-            if (action_userabort(TIMEOUT_NOBLOCK))
+        if (TIME_AFTER(current_tick, last_tick + HZ/4)) {
+            if (action_userabort(TIMEOUT_NOBLOCK)) {
                 break;
+            }
             last_tick = current_tick;
         }
-
-        if (!tagcache_retrieve(&tcs, tagtree_get_entry(c, i)->extraseek,
-                               tcs.type, buf, sizeof buf))
-        {
+        if (fillRandomly && !selectiveRandomPlaylistIndexes[i]) {
             continue;
         }
-
-        if (playlist == NULL)
-        {
-            if (playlist_insert_track(NULL, buf, position, queue, false) < 0)
-            {
+        if (!tagcache_retrieve(&tcs, tagtree_get_entry(c, i)->extraseek, tcs.type, buf, sizeof buf)) {
+            continue;
+        }
+        if (playlist == NULL) {
+            if (playlist_insert_track(NULL, buf, position, queue, false) < 0) {
                 logf("playlist_insert_track failed");
                 break;
             }
+        } else if (fdprintf(fd, "%s\n", buf) <= 0) {
+            break;
         }
-        else if (fdprintf(fd, "%s\n", buf) <= 0)
-                break;
-
         yield();
-
-        if (playlist == NULL && position == PLAYLIST_INSERT_FIRST)
-        {
+        if (playlist == NULL && position == PLAYLIST_INSERT_FIRST) {
             position = PLAYLIST_INSERT;
         }
     }
-    if (playlist == NULL)
+    if (playlist == NULL) {
         playlist_sync(NULL);
-    else
+    } else {
         close(fd);
+    }
     tagcache_search_finish(&tcs);
     cpu_boost(false);
-
     return true;
 }
 
