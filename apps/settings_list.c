@@ -1121,7 +1121,7 @@ const struct settings_list settings[] = {
     INT_SETTING(F_BANFROMQS, max_files_in_playlist,
                 LANG_MAX_FILES_IN_PLAYLIST,
 #if MEMORYSIZE > 1
-                  10000,
+                  2000,
 #else
                   400,
 #endif
