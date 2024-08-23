@@ -735,6 +735,16 @@ static int dirbrowse(void)
         oldbutton = button;
         gui_synclist_do_button(&tree_lists, &button);
         tc.selected_item = gui_synclist_get_sel_pos(&tree_lists);
+        bool shuffleAll = false;
+        #ifdef HAVE_TAGCACHE
+            if (id3db && button == ACTION_STD_OK) {
+                struct entry *entry = tree_get_entry_at(&tc, tc.selected_item);
+                shuffleAll = entry && !strcmp(entry->name,"Shuffle Songs");
+                if (shuffleAll) {
+                    button = ACTION_STD_CONTEXT;
+                }
+            }
+        #endif
         switch ( button ) {
             case ACTION_STD_OK:
                 /* nothing to do if no files to display */
@@ -773,7 +783,7 @@ static int dirbrowse(void)
                     default:
                         break;
                 }
-                restore = true;
+                restore = true && !shuffleAll;
                 break;
 
             case ACTION_STD_CANCEL:
@@ -798,12 +808,12 @@ static int dirbrowse(void)
                     if (ft_exit(&tc) == 3)
                         exit_func = true;
 
-                restore = true;
+                restore = true && !shuffleAll;
                 break;
 
             case ACTION_TREE_STOP:
                 if (list_stop_handler())
-                    restore = true;
+                    restore = true && !shuffleAll;
                 break;
 
             case ACTION_STD_MENU:
@@ -851,7 +861,7 @@ static int dirbrowse(void)
                         skin_update(CUSTOM_STATUSBAR, i, SKIN_REFRESH_ALL);
                 }
 
-                restore = true;
+                restore = true && !shuffleAll;
                 break;
             }
 #endif
@@ -872,7 +882,7 @@ static int dirbrowse(void)
                     break;
 
                 if(!numentries)
-                    onplay_result = onplay(NULL, 0, curr_context, hotkey);
+                    onplay_result = onplay(NULL, 0, curr_context, hotkey, shuffleAll);
                 else {
 #ifdef HAVE_TAGCACHE
                     if (id3db)
@@ -902,7 +912,7 @@ static int dirbrowse(void)
                         ft_assemble_path(buf, sizeof(buf), currdir, entry->name);
 
                     }
-                    onplay_result = onplay(buf, attr, curr_context, hotkey);
+                    onplay_result = onplay(buf, attr, curr_context, hotkey, shuffleAll);
                 }
                 switch (onplay_result)
                 {
@@ -911,7 +921,7 @@ static int dirbrowse(void)
                         break;
 
                     case ONPLAY_OK:
-                        restore = true;
+                        restore = true && !shuffleAll;
                         break;
 
                     case ONPLAY_RELOAD_DIR:
@@ -988,7 +998,7 @@ static int dirbrowse(void)
 
             lastfilter = *tc.dirfilter;
             lastsortcase = global_settings.sort_case;
-            restore = true;
+            restore = true && !shuffleAll;
         }
 
         if (exit_func)
