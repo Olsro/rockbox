@@ -115,7 +115,8 @@ enum variables {
 static uint32_t uniqbuf[UNIQBUF_SIZE / sizeof(uint32_t)];
 
 /* Should be enough to handle very large librairies */
-static bool selectiveRandomPlaylistIndexes[128*1024];
+#define SELECTIVE_RANDOM_PLAYLIST_MAX_SCAN_SIZE (256*1024)
+static bool selectiveRandomPlaylistIndexes[SELECTIVE_RANDOM_PLAYLIST_MAX_SCAN_SIZE];
 
 #define MAX_TAGS 5
 #define MAX_MENU_ID_SIZE 32
@@ -2149,20 +2150,21 @@ static bool insert_all_playlist(struct tree_context *c,
         fillRandomly = willExceed;
 
         if (fillRandomly) {
+            int nScan = n > SELECTIVE_RANDOM_PLAYLIST_MAX_SCAN_SIZE ? SELECTIVE_RANDOM_PLAYLIST_MAX_SCAN_SIZE : n;
             int maxAvailableSpace = currentPlaylist->max_playlist_size - currentPlaylist->amount;
             if (maxAvailableSpace == 0) {
                 // It will fail later gracefully when trying to insert
-                for (i = 0; i < n; i++) {
+                for (i = 0; i < nScan; i++) {
                     selectiveRandomPlaylistIndexes[i] = true;
                 }
             } else {
-                for (i = 0; i < n; i++) {
+                for (i = 0; i < nScan; i++) {
                     selectiveRandomPlaylistIndexes[i] = false;
                 }
                 i = 0;
                 srand(current_tick);
                 while (true) {
-                    int randomNumber = rand() % n;
+                    int randomNumber = rand() % nScan;
                     if (selectiveRandomPlaylistIndexes[randomNumber]) {
                         continue;
                     }
