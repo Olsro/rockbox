@@ -48,9 +48,7 @@
 /* asm optimized reading and writing */
 #define ATA_OPTIMIZED_READING
 #define ATA_OPTIMIZED_WRITING
-
 #define ATA_SET_PIO_TIMING
-
 #endif /* CONFIG_CPU */
 
 #ifdef HAVE_ATA_DMA
@@ -71,8 +69,8 @@
  *
  * A slower mode is used on iPod 4Gs due to reported instabilities.
  */
-#if CPUFREQ_NORMAL >= 30000000 && !defined(IPOD_4G)
-#define ATA_MAX_UDMA 2
+#if CPUFREQ_NORMAL >= 30000000
+#define ATA_MAX_UDMA 4
 #elif CPUFREQ_NORMAL >= 24000000
 #define ATA_MAX_UDMA 1
 #else

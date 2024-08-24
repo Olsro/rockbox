@@ -216,6 +216,7 @@
  */
 #ifndef BOOTLOADER
 #define HAVE_ATA_DMA
+#define ATA_DMA_WRITES
 #endif
 
 /* Define this if a programmable hotkey is mapped */

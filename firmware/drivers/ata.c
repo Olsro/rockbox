@@ -166,8 +166,16 @@ static inline bool ata_power_off_timed_out(void)
 static ICODE_ATTR int wait_for_bsy(void)
 {
     long timeout = current_tick + HZ*30;
-
-    do
+    
+    /*
+	need to wait before reading status according to ATA specification
+	instead of using sleep function, read ATA_STATUS 3 times and 
+	discard the first two reads, pio timing 120ns *3 dealy, 
+	*/
+	ATA_IN8(ATA_STATUS);
+	ATA_IN8(ATA_STATUS);
+    
+    do 
     {
         if (!(ATA_IN8(ATA_STATUS) & STATUS_BSY))
             return 1;
@@ -416,8 +424,11 @@ static int ata_transfer_sectors(uint64_t start,
 
     timeout = current_tick + READWRITE_TIMEOUT;
 
+/*  nothing to select for single drive
     ATA_OUT8(ATA_SELECT, ata_device);
-    if (!wait_for_rdy())
+*/
+
+    if (!wait_for_bsy())
     {
         ret = -3;
         goto error;
@@ -475,13 +486,15 @@ static int ata_transfer_sectors(uint64_t start,
 #endif
         }
 
-        /* wait at least 400ns between writing command and reading status */
+        /* wait at least 400ns between writing command and reading status
+		we might have a problem here because the delay here is CPU frequency dependent
+		move this delay to wait_for_bsy() and use IO delay.		
+		*/
+/*       __asm__ volatile ("nop");
         __asm__ volatile ("nop");
         __asm__ volatile ("nop");
         __asm__ volatile ("nop");
-        __asm__ volatile ("nop");
-        __asm__ volatile ("nop");
-
+*/
 #ifdef HAVE_ATA_DMA
         if (usedma) {
             if (!ata_dma_finish())
@@ -902,7 +915,7 @@ static int identify(void)
 {
     int i;
 
-    ATA_OUT8(ATA_SELECT, ata_device);
+//    ATA_OUT8(ATA_SELECT, ata_device);
 
     if(!wait_for_rdy()) {
         DEBUGF("identify() - not RDY\n");
@@ -939,7 +952,9 @@ static int perform_soft_reset(void)
 
     ATA_OUT8(ATA_SELECT, SELECT_LBA | ata_device );
     ATA_OUT8(ATA_CONTROL, CONTROL_nIEN|CONTROL_SRST );
-    sleep(1); /* >= 5us */
+
+/*the delay here is unnecessary*/
+//    sleep(1); /* >= 5us */
 
 #ifdef HAVE_ATA_DMA
     /* DMA requires INTRQ be enabled */
@@ -947,7 +962,13 @@ static int perform_soft_reset(void)
 #else
     ATA_OUT8(ATA_CONTROL, CONTROL_nIEN);
 #endif
-    sleep(1); /* >2ms */
+
+/*we've been sleep too long here, some drives (flash drives) might have already 
+fall into sleep mode during the 1sec sleep, subsequently lock into soft_reset loop.
+This could be the cause of "sucker" of 30 seconds or freeze. As we have already added the 400us
+delay in wait_for_bsy(), which is called in wait_for_rdy(), no more wait is needed here.
+*/
+//    sleep(1); /* >2ms */
 
     /* This little sucker can take up to 30 seconds */
     retry_count = 8;
