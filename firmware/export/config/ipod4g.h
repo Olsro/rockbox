@@ -113,7 +113,7 @@
 
 /* define this if you have a disk storage, i.e. something
    that needs spinups and can cause skips when shaked */
-#define HAVE_DISK_STORAGE
+#define HAVE_FLASH_STORAGE
 
 /* Define this for LCD backlight available */
 #define HAVE_BACKLIGHT
@@ -223,6 +223,7 @@
  */
 #ifndef BOOTLOADER
 #define HAVE_ATA_DMA
+#define ATA_DMA_WRITES
 #endif
 
 /* Define this, if you can switch on/off the lineout */

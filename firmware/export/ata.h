@@ -216,7 +216,7 @@ static inline int ata_disk_can_poweroff(void)
     unsigned short *identify_info = ata_get_identify();
     /* Only devices that claim to support PM can be safely powered off.
        This notably excludes the various SD adapters! */
-    return (identify_info[82] & (1<<3) && identify_info[85] & (1<<3));
+    return ((identify_info[82] & (1<<3) && identify_info[85] & (1<<3)) || ata_disk_isssd());
 }
 
 #ifdef HAVE_ATA_DMA

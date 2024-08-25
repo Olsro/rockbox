@@ -1463,7 +1463,7 @@ static int disk_callback(int btn, struct gui_synclist *lists)
     simplelist_addline("SSD detected: %s", ata_disk_isssd() ? "yes" : "no");
     simplelist_addline(
              "Spinup time: %d ms", storage_spinup_time() * (1000/HZ));
-    i = identify_info[82] & (1<<3);
+    i = ((identify_info[82] & (1<<3)) || ata_disk_isssd());
     simplelist_addline(
              "Power mgmt: %s", i ? "enabled" : "unsupported");
     i = identify_info[83] & (1<<3);

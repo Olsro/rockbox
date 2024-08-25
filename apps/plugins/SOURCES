@@ -206,7 +206,7 @@ superdom.c
 #endif /* LCD_DEPTH > 1 */
 
 
-test_disk.c
+
 #ifdef HAVE_TEST_PLUGINS /* enable in advanced build options */
 #ifdef HAVE_ADJUSTABLE_CPU_FREQ
 test_boost.c

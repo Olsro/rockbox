@@ -53,14 +53,23 @@
 #ifdef HAVE_ATA_SMART
 #define CMD_SMART                  0xB0
 #endif
-#define CMD_STANDBY_IMMEDIATE      0xE0
-#define CMD_STANDBY                0xE2
 #define CMD_IDENTIFY               0xEC
-#define CMD_SLEEP                  0xE6
 #define CMD_FLUSH_CACHE            0xE7
 #define CMD_FLUSH_CACHE_EXT        0xEA
 #define CMD_SET_FEATURES           0xEF
 #define CMD_SECURITY_FREEZE_LOCK   0xF5
+/** Power management */
+#define CMD_STANDBY_IMMEDIATE1     0xE0
+#define CMD_STANDBY_IMMEDIATE2     0x94
+#define CMD_STANDBY1               0xE2
+#define CMD_STANDBY2               0x96
+#define CMD_SLEEP1                 0xE6
+#define CMD_SLEEP2                 0x99
+#define CMD_IDLE1                  0xE3
+#define CMD_IDLE2                  0x97
+#define CMD_IDLEIMMEDIATE1         0xE1
+#define CMD_IDLEIMMEDIATE2         0x95
+/** DMA */
 #ifdef HAVE_ATA_DMA
 #define CMD_READ_DMA               0xC8
 #define CMD_READ_DMA_EXT           0x25
@@ -175,10 +184,10 @@ static ICODE_ATTR int wait_for_bsy(void)
 	ATA_IN8(ATA_STATUS);
 	ATA_IN8(ATA_STATUS);
     
-    do 
-    {
-        if (!(ATA_IN8(ATA_STATUS) & STATUS_BSY))
+    do {
+        if (!(ATA_IN8(ATA_STATUS) & STATUS_BSY)) {
             return 1;
+        }
         keep_ata_active();
         yield();
     } while (TIME_BEFORE(current_tick, timeout));
@@ -190,15 +199,16 @@ static ICODE_ATTR int wait_for_rdy(void)
 {
     long timeout;
 
-    if (!wait_for_bsy())
+    if (!wait_for_bsy()) {
         return 0;
+    }
 
     timeout = current_tick + HZ*10;
 
-    do
-    {
-        if (ATA_IN8(ATA_ALT_STATUS) & STATUS_RDY)
+    do {
+        if (ATA_IN8(ATA_ALT_STATUS) & STATUS_RDY) {
             return 1;
+        }
         keep_ata_active();
         yield();
     } while (TIME_BEFORE(current_tick, timeout));
@@ -244,7 +254,7 @@ static int ata_perform_sleep(void)
         return -1;
     }
 
-    /* STANDBY IMMEDIATE
+    /* IDLE THEN STANDBY THEN STANDBY IMMEDIATE
         - writes all cached data
         - transitions to PM2:Standby
         - enters Standby_z power condition
@@ -252,11 +262,45 @@ static int ata_perform_sleep(void)
       This places the device into a state where power-off is safe.  We
       will cut power at a later time.
     */
-    ATA_OUT8(ATA_COMMAND, CMD_STANDBY_IMMEDIATE);
-
+    ATA_OUT8(ATA_COMMAND, CMD_IDLE1);
     if (!wait_for_rdy()) {
-        DEBUGF("ata_perform_sleep() - CMD failed\n");
+        DEBUGF("ata_perform_sleep() - CMD failed - 1\n");
         return -2;
+    }
+    ATA_OUT8(ATA_COMMAND, CMD_IDLE2);
+    if (!wait_for_rdy()) {
+        DEBUGF("ata_perform_sleep() - CMD failed - 2\n");
+        return -3;
+    }
+    ATA_OUT8(ATA_COMMAND, CMD_IDLEIMMEDIATE1);
+    if (!wait_for_rdy()) {
+        DEBUGF("ata_perform_sleep() - CMD failed - 3\n");
+        return -4;
+    }
+    ATA_OUT8(ATA_COMMAND, CMD_IDLEIMMEDIATE2);
+    if (!wait_for_rdy()) {
+        DEBUGF("ata_perform_sleep() - CMD failed - 4\n");
+        return -5;
+    }
+    ATA_OUT8(ATA_COMMAND, CMD_STANDBY1);
+    if (!wait_for_rdy()) {
+        DEBUGF("ata_perform_sleep() - CMD failed - 5\n");
+        return -6;
+    }
+    ATA_OUT8(ATA_COMMAND, CMD_STANDBY2);
+    if (!wait_for_rdy()) {
+        DEBUGF("ata_perform_sleep() - CMD failed - 6\n");
+        return -7;
+    }
+    ATA_OUT8(ATA_COMMAND, CMD_STANDBY_IMMEDIATE1);
+    if (!wait_for_rdy()) {
+        DEBUGF("ata_perform_sleep() - CMD failed - 7\n");
+        return -8;
+    }
+    ATA_OUT8(ATA_COMMAND, CMD_STANDBY_IMMEDIATE2);
+    if (!wait_for_rdy()) {
+        DEBUGF("ata_perform_sleep() - CMD failed - 8\n");
+        return -9;
     }
 
     return 0;
@@ -972,25 +1016,29 @@ delay in wait_for_bsy(), which is called in wait_for_rdy(), no more wait is need
 
     /* This little sucker can take up to 30 seconds */
     retry_count = 8;
-    do
-    {
+    do {
         ret = wait_for_rdy();
     } while(!ret && retry_count--);
 
-    if (!ret)
+    if (!ret) {
         return -1;
+    }
 
-    if (identify())
+    if (identify()) {
         return -5;
+    }
 
-    if ((ret = set_features()))
+    if ((ret = set_features())) {
         return -60 + ret;
+    }
 
-    if (set_multiple_mode(multisectors))
+    if (set_multiple_mode(multisectors)) {
         return -3;
+    }
 
-    if (freeze_lock())
+    if (freeze_lock()) {
         return -4;
+    }
 
     return 0;
 }
@@ -1012,6 +1060,11 @@ int ata_soft_reset(void)
 #ifdef HAVE_ATA_POWER_OFF
 static int ata_power_on(void)
 {
+    if (ide_powered()) {
+        // ATA spec requires a soft reset to exit SLEEP mode
+        perform_soft_reset();
+        return 0;
+    }
     int rc;
 
     logf("ata ON %ld", current_tick);
@@ -1026,43 +1079,46 @@ static int ata_power_on(void)
      * ata_hard_reset() will shortened by the same amount), it's a good idea
      * to do this on all HDD based targets. */
 
-    if( ata_hard_reset() )
+    if(ata_hard_reset()) {
         return -1;
+    }
 
-    if (identify())
+    if (identify()) {
         return -5;
+    }
 
     rc = set_features();
-    if (rc)
+    if (rc) {
         return -60 + rc;
+    }
 
-    if (set_multiple_mode(multisectors))
+    if (set_multiple_mode(multisectors)) {
         return -3;
+    }
 
-    if (freeze_lock())
+    if (freeze_lock()) {
         return -4;
+    }
 
     return 0;
 }
 #endif /* HAVE_ATA_POWER_OFF */
 
-static int STORAGE_INIT_ATTR master_slave_detect(void)
-{
+static int STORAGE_INIT_ATTR master_slave_detect(void) {
     /* master? */
     ATA_OUT8(ATA_SELECT, 0);
     if (ATA_IN8(ATA_STATUS) & (STATUS_RDY|STATUS_BSY)) {
         ata_device = 0;
         DEBUGF("Found master harddisk\n");
-    }
-    else {
+    } else {
         /* slave? */
         ATA_OUT8(ATA_SELECT, SELECT_DEVICE1);
         if (ATA_IN8(ATA_STATUS) & (STATUS_RDY|STATUS_BSY)) {
             ata_device = SELECT_DEVICE1;
             DEBUGF("Found slave harddisk\n");
-        }
-        else
+        } else {
             return -1;
+        }
     }
     return 0;
 }
@@ -1117,7 +1173,7 @@ static int set_features(void)
         { 0, 0, 0x03, 0 },     /* DMA mode */
 #endif
         /* NOTE: Above two MUST come first! */
-        { 83, 3, 0x05, 0x80 }, /* adv. power management: lowest w/o standby */
+        { 83, 3, 0x05, 0x01 }, /* adv. power management: lowest */
         { 83, 9, 0x42, 0x80 }, /* acoustic management: lowest noise */
         { 82, 5, 0x02, 0 },    /* enable volatile write cache */
         { 82, 6, 0xaa, 0 },    /* enable read look-ahead */
@@ -1430,6 +1486,31 @@ int ata_num_drives(int first_drive)
 }
 #endif
 
+int ata_perform_deep_sleep(void) {
+    logf("ata DEEPSLEEP %ld", current_tick);
+    ATA_OUT8(ATA_SELECT, ata_device);
+    if(!wait_for_rdy()) {
+        DEBUGF("ata_perform_deep_sleep() - not RDY\n");
+        return -1;
+    }
+    /**
+     * Place the drive in complete sleep mode
+     * By looking at the graph here : https://www.seagate.com/support/disc/manuals/ata/92130pm.pdf
+     * On some drives, there is a clear difference between Sleep Mode and Standby Mode
+     */
+    ATA_OUT8(ATA_COMMAND, CMD_SLEEP1);
+    if (!wait_for_rdy()) {
+        DEBUGF("ata_perform_deep_sleep() - CMD failed - 1\n");
+        return -2;
+    }
+    ATA_OUT8(ATA_COMMAND, CMD_SLEEP2);
+    if (!wait_for_rdy()) {
+        DEBUGF("ata_perform_deep_sleep() - CMD failed - 2\n");
+        return -3;
+    }
+    return 0;
+}
+
 int ata_event(long id, intptr_t data)
 {
     int rc = 0;
@@ -1442,11 +1523,12 @@ int ata_event(long id, intptr_t data)
         if (ata_state != ATA_ON || !ata_sleep_timed_out()) {
 #ifdef HAVE_ATA_POWER_OFF
             if (ata_state == ATA_SLEEPING && ata_power_off_timed_out()) {
-                power_off_tick = 0;
                 mutex_lock(&ata_mtx);
-                logf("ata OFF %ld", current_tick);
-                ide_power_enable(false);
-                ata_state = ATA_OFF;
+                rc = ata_perform_deep_sleep();
+                if (!rc) {
+                    power_off_tick = 0;
+                    ata_state = ATA_OFF;
+                }
                 mutex_unlock(&ata_mtx);
             }
 #endif
