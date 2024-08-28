@@ -132,6 +132,7 @@
 
 /* Define this if you have a software controlled poweroff */
 #define HAVE_SW_POWEROFF
+#define HAVE_ATA_POWER_OFF_RATHER_THAN_SLEEP
 
 /* Buffer for plugins and codecs. */
 #define PLUGIN_BUFFER_SIZE  0x200000 /* 2 MiB */

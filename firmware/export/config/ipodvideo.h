@@ -181,6 +181,7 @@
 
 /* We're able to shut off power to the HDD */
 #define HAVE_ATA_POWER_OFF
+#define HAVE_ATA_POWER_OFF_RATHER_THAN_SLEEP
 
 /* define this if the hardware can be powered off while charging */
 //#define HAVE_POWEROFF_WHILE_CHARGING

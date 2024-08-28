@@ -1487,27 +1487,32 @@ int ata_num_drives(int first_drive)
 #endif
 
 int ata_perform_deep_sleep(void) {
-    logf("ata DEEPSLEEP %ld", current_tick);
-    ATA_OUT8(ATA_SELECT, ata_device);
-    if(!wait_for_rdy()) {
-        DEBUGF("ata_perform_deep_sleep() - not RDY\n");
-        return -1;
-    }
-    /**
-     * Place the drive in complete sleep mode
-     * By looking at the graph here : https://www.seagate.com/support/disc/manuals/ata/92130pm.pdf
-     * On some drives, there is a clear difference between Sleep Mode and Standby Mode
-     */
-    ATA_OUT8(ATA_COMMAND, CMD_SLEEP1);
-    if (!wait_for_rdy()) {
-        DEBUGF("ata_perform_deep_sleep() - CMD failed - 1\n");
-        return -2;
-    }
-    ATA_OUT8(ATA_COMMAND, CMD_SLEEP2);
-    if (!wait_for_rdy()) {
-        DEBUGF("ata_perform_deep_sleep() - CMD failed - 2\n");
-        return -3;
-    }
+    #ifdef HAVE_ATA_POWER_OFF_RATHER_THAN_SLEEP
+        logf("ata POWEROFF %ld", current_tick);
+        ide_power_enable(false);
+    #else
+        logf("ata DEEPSLEEP %ld", current_tick);
+        ATA_OUT8(ATA_SELECT, ata_device);
+        if(!wait_for_rdy()) {
+            DEBUGF("ata_perform_deep_sleep() - not RDY\n");
+            return -1;
+        }
+        /**
+         * Place the drive in complete sleep mode
+         * By looking at the graph here : https://www.seagate.com/support/disc/manuals/ata/92130pm.pdf
+         * On some drives, there is a clear difference between Sleep Mode and Standby Mode
+         */
+        ATA_OUT8(ATA_COMMAND, CMD_SLEEP1);
+        if (!wait_for_rdy()) {
+            DEBUGF("ata_perform_deep_sleep() - CMD failed - 1\n");
+            return -2;
+        }
+        ATA_OUT8(ATA_COMMAND, CMD_SLEEP2);
+        if (!wait_for_rdy()) {
+            DEBUGF("ata_perform_deep_sleep() - CMD failed - 2\n");
+            return -3;
+        }
+    #endif
     return 0;
 }
 
