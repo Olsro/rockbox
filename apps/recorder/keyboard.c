@@ -951,8 +951,8 @@ static void kbd_draw_picker(struct keyboard_parameters *pm,
 #ifdef HAVE_MORSE_INPUT
     if (state->morse_mode)
     {
-        const int w = 6, h = 8; /* sysfixed font width, height */
-        int i, j, x, y;
+        const int w = 6, h = 9; /* sysfixed font width, height */
+        int i, iNext, j, x, y;
         int sc_w = vp->width, sc_h = vp->height;//pm->main_y - pm->keyboard_margin - 1;
 
         /* Draw morse code screen with sysfont */
@@ -970,7 +970,7 @@ static void kbd_draw_picker(struct keyboard_parameters *pm,
             for (j = 0; morse_code > 0x01; morse_code >>= 1) {
                 j++;
             }
-            x += w + 3 + j*4;
+            x += w + 3 + j * 4;
             morse_code = morse_codes[i];
             for (; morse_code > 0x01; morse_code >>= 1) {
                 x -= 4;
@@ -980,13 +980,27 @@ static void kbd_draw_picker(struct keyboard_parameters *pm,
                     sc->fillrect(x, y + 3, 1, 2);
                 }
             }
-            x += w * 5 - 3;
-            if (x + w * 6 >= sc_w) {
-                x = 0;
-                y += h;
-                if (y + h >= sc_h) {
+            x += j * 4;
+            iNext = i + 1;
+            if (morse_alphabets[iNext] == '\0') {
+                break;
+            }
+            morse_code = morse_codes[iNext];
+            for (j = 0; morse_code > 0x01; morse_code >>= 1) {
+                j++;
+            }
+            // If the next one will go out of line
+            bool needNewLine = x + w + 3 + j * 4 + w > sc_w;
+            if (needNewLine) {
+                if (y + h > sc_h) {
+                    // No more height space
                     break;
                 }
+                x = 0;
+                y += h;
+            } else {
+                // Some pixels for spacing in the same line
+                x += w;
             }
         }
     }
