@@ -960,37 +960,33 @@ static void kbd_draw_picker(struct keyboard_parameters *pm,
         x = 0;
         y = 0;
         outline[1] = '\0';
-
+        
         /* Draw morse code table with code descriptions. */
-        for (i = 0; morse_alphabets[i] != '\0'; i++)
-        {
+        for (i = 0; morse_alphabets[i] != '\0'; i++) {
             int morse_code;
-
             outline[0] = morse_alphabets[i];
             sc->putsxy(x, y, outline);
-
             morse_code = morse_codes[i];
-            for (j = 0; morse_code > 0x01; morse_code >>= 1)
+            for (j = 0; morse_code > 0x01; morse_code >>= 1) {
                 j++;
-
+            }
             x += w + 3 + j*4;
             morse_code = morse_codes[i];
-            for (; morse_code > 0x01; morse_code >>= 1)
-            {
+            for (; morse_code > 0x01; morse_code >>= 1) {
                 x -= 4;
-                if (morse_code & 0x01)
+                if (morse_code & 0x01) {
                     sc->fillrect(x, y + 2, 3, 4);
-                else
+                } else {
                     sc->fillrect(x, y + 3, 1, 2);
+                }
             }
-
-            x += w*5 - 3;
-            if (x + w*6 >= sc_w)
-            {
+            x += w * 5 - 3;
+            if (x + w * 6 >= sc_w) {
                 x = 0;
                 y += h;
-                if (y + h >= sc_h)
+                if (y + h >= sc_h) {
                     break;
+                }
             }
         }
     }
