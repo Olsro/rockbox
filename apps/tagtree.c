@@ -58,6 +58,7 @@
 #include "panic.h"
 #include "onplay.h"
 #include "plugin.h"
+#include "language.h"
 
 #define str_or_empty(x) (x ? x : "(NULL)")
 
@@ -78,6 +79,7 @@ struct tagentry {
     int newtable;
     int extraseek;
     int customaction;
+    bool is_translatable;
 };
 
 static struct tagentry* tagtree_get_entry(struct tree_context *c, int id);
@@ -204,6 +206,7 @@ struct match
 
 /* Statusbar text of the current view. */
 static char current_title[MAX_TAGS][128];
+static bool current_translatable_state[MAX_TAGS];
 
 static struct menu_root * menus[TAGMENU_MAX_MENUS];
 static struct menu_root * menu;
@@ -779,6 +782,21 @@ static int get_condition(struct search_instruction *inst)
     return 1;
 }
 
+int tagtree_get_translation_id(char* temp)
+{
+    if (strlen(temp) <= 1)
+    {
+        /* We won't translate empty or single character strings */
+        return -1;
+    }
+    int i = lang_english_to_id(temp);
+    if (i < 0 || i >= LANG_LAST_INDEX_IN_ARRAY)
+    {
+        return -1;
+    }
+    return i;
+}
+
 /* example search:
  * "Best" artist ? year >= "2000" & title !^ "crap" & genre = "good genre" \
  *      : album  ? year >= "2000" : songs
@@ -1269,6 +1287,7 @@ static void tagtree_unload(struct tree_context *c)
             dptr->newtable = 0;
             dptr->extraseek = 0;
             dptr->customaction = ONPLAY_NO_CUSTOMACTION;
+            dptr->is_translatable = false;
             dptr++;
         }
     }
@@ -1447,6 +1466,29 @@ static void tcs_get_basename(struct tagcache_search *tcs, bool is_basename)
     }
 }
 
+bool tagtree_is_title_translatable(struct tree_context *c)
+{
+    switch (c->currtable)
+    {
+        case TABLE_ROOT:
+            return true;
+
+        case TABLE_NAVIBROWSE:
+        case TABLE_ALLSUBENTRIES:
+            return current_translatable_state[c->currextra];
+    }
+
+    return false;
+}
+
+bool tagtree_is_entry_translatable(struct tree_context *c, int id)
+{
+    struct tagentry *entry = tagtree_get_entry(c, id);
+    if (!entry)
+        return false;
+    return entry->is_translatable;
+}
+
 static int retrieve_entries(struct tree_context *c, int offset, bool init)
 {
     char tcs_buf[TAGCACHE_BUFSZ];
@@ -1569,8 +1611,9 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
         if (offset == 0)
         {
             dptr->newtable = TABLE_ALLSUBENTRIES;
-            dptr->name = str(LANG_TAGNAVI_ALL_TRACKS);
+            dptr->name = "<All tracks>"; /* Will be translated later */
             dptr->customaction = ONPLAY_NO_CUSTOMACTION;
+            dptr->is_translatable = true;
             dptr++;
             current_entry_count++;
             special_entry_count++;
@@ -1578,9 +1621,10 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
         if (offset <= 1)
         {
             dptr->newtable = TABLE_NAVIBROWSE;
-            dptr->name = str(LANG_TAGNAVI_RANDOM);
+            dptr->name = "<Random>"; /* Will be translated later */
             dptr->extraseek = -1;
             dptr->customaction = ONPLAY_NO_CUSTOMACTION;
+            dptr->is_translatable = true;
             dptr++;
             current_entry_count++;
             special_entry_count++;
@@ -1603,6 +1647,7 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
         else
             dptr->extraseek = tcs.result_seek;
         dptr->customaction = ONPLAY_NO_CUSTOMACTION;
+        dptr->is_translatable = false;
 
         fmt = NULL;
         /* Check the format */
@@ -1805,18 +1850,21 @@ static int load_root(struct tree_context *c)
                 dptr->newtable = TABLE_NAVIBROWSE;
                 dptr->extraseek = i;
                 dptr->customaction = ONPLAY_NO_CUSTOMACTION;
+                dptr->is_translatable = true;
                 break;
 
             case menu_load:
                 dptr->newtable = TABLE_ROOT;
                 dptr->extraseek = menu->items[i]->link;
                 dptr->customaction = ONPLAY_NO_CUSTOMACTION;
+                dptr->is_translatable = true;
                 break;
 
             case menu_shuffle_songs:
                 dptr->newtable = TABLE_NAVIBROWSE;
                 dptr->extraseek = i;
                 dptr->customaction = ONPLAY_CUSTOMACTION_SHUFFLE_SONGS;
+                dptr->is_translatable = true;
                 break;
         }
 
@@ -1992,6 +2040,7 @@ int tagtree_enter(struct tree_context* c, bool is_visible)
 
                 strmemccpy(current_title[c->currextra], dptr->name,
                            sizeof(current_title[0]));
+                current_translatable_state[c->currextra] = dptr->is_translatable;
 
                 /* Read input as necessary. */
                 for (i = 0; i < csi->tagorder_count; i++)
@@ -2088,6 +2137,7 @@ int tagtree_enter(struct tree_context* c, bool is_visible)
             /* Update the statusbar title */
             strmemccpy(current_title[c->currextra], dptr->name,
                        sizeof(current_title[0]));
+            current_translatable_state[c->currextra] = dptr->is_translatable;
             break;
 
         default:
@@ -2577,7 +2627,6 @@ char* tagtree_get_entry_name(struct tree_context *c, int id,
     strmemccpy(buf, entry->name, bufsize);
     return buf;
 }
-
 
 char *tagtree_get_title(struct tree_context* c)
 {

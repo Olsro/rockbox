@@ -124,7 +124,16 @@ static const char* tree_get_filename(int selected_item, void *data,
 
     if (id3db)
     {
-        return tagtree_get_entry_name(&tc, selected_item, buffer, buffer_len);
+        char* entry_name = tagtree_get_entry_name(&tc, selected_item, buffer, buffer_len);
+        if (tagtree_is_entry_translatable(&tc, selected_item))
+        {
+            int lang_id = tagtree_get_translation_id(entry_name);
+            if (lang_id >= 0)
+            {
+                entry_name = (char*)P2STR(ID2P(lang_id));
+            }
+        }
+        return entry_name;
     }
     else
 #endif
@@ -457,8 +466,17 @@ static int update_dir(void)
         if (show_path_in_browser == SHOW_PATH_FULL
             || show_path_in_browser == SHOW_PATH_CURRENT)
         {
-            title = tagtree_get_title(&tc);
+            char* tmp_title = tagtree_get_title(&tc);
             icon = filetype_get_icon(ATTR_DIRECTORY);
+            if (tagtree_is_title_translatable(&tc))
+            {
+                int lang_id = tagtree_get_translation_id(tmp_title);
+                if (lang_id >= 0)
+                {
+                    tmp_title = (char*)P2STR(ID2P(lang_id));
+                }
+            }
+            title = tmp_title;
         }
     }
     else
