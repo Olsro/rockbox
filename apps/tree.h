@@ -35,7 +35,7 @@ struct entry {
     unsigned time_write; /* Last write time */
     #ifdef HAVE_TAGCACHE
     int customaction; /* db use */
-    bool is_translatable; /* db use */
+    int lang_id; /* db use */
     #endif
 };
 

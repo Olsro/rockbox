@@ -1611,9 +1611,9 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
         if (offset == 0)
         {
             dptr->newtable = TABLE_ALLSUBENTRIES;
-            dptr->name = "<All tracks>"; /* Will be translated later */
+            dptr->name = NULL; /* Will be translated later */
             dptr->customaction = ONPLAY_NO_CUSTOMACTION;
-            dptr->lang_id = tagtree_get_translation_id(dptr->name);
+            dptr->lang_id = LANG_TAGNAVI_ALL_TRACKS;
             dptr++;
             current_entry_count++;
             special_entry_count++;
@@ -1621,10 +1621,10 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
         if (offset <= 1)
         {
             dptr->newtable = TABLE_NAVIBROWSE;
-            dptr->name = "<Random>"; /* Will be translated later */
+            dptr->name = NULL; /* Will be translated later */
             dptr->extraseek = -1;
             dptr->customaction = ONPLAY_NO_CUSTOMACTION;
-            dptr->lang_id = tagtree_get_translation_id(dptr->name);
+            dptr->lang_id = LANG_TAGNAVI_RANDOM;
             dptr++;
             current_entry_count++;
             special_entry_count++;

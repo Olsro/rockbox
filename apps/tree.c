@@ -219,6 +219,7 @@ static int tree_voice_cb(int selected_item, void * data)
     {
         attr = tagtree_get_attr(local_tc);
         name = tagtree_get_entry_name(local_tc, selected_item, buf, sizeof(buf));
+        /* TODO To enable voicing, we need to see if P2ID(name) is >= 0, and if so enqueue that phrase */
     }
     else
 #endif
@@ -471,6 +472,7 @@ static int update_dir(void)
                 tmp_title = (char*)P2STR(ID2P(title_lang_id));
             }
             title = tmp_title;
+            /* TODO To enable voicing, we need to see if P2ID(name) is >= 0, and if so enqueue that phrase */
         }
     }
     else
