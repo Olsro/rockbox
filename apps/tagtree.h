@@ -48,9 +48,8 @@ int tagtree_get_filename(struct tree_context* c, char *buf, int buflen);
 int tagtree_get_custom_action(struct tree_context* c);
 bool tagtree_get_subentry_filename(char *buf, size_t bufsize);
 bool tagtree_subentries_do_action(bool (*action_cb)(const char *file_name));
-bool tagtree_is_title_translatable(struct tree_context *c);
-bool tagtree_is_entry_translatable(struct tree_context *c, int id);
-int tagtree_get_translation_id(char* temp);
+int tagtree_title_get_lang_id(struct tree_context *c);
+int tagtree_entry_get_lang_id(struct tree_context *c, int id);
 
 #endif
 #endif

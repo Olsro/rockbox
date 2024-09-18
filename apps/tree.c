@@ -125,13 +125,10 @@ static const char* tree_get_filename(int selected_item, void *data,
     if (id3db)
     {
         char* entry_name = tagtree_get_entry_name(&tc, selected_item, buffer, buffer_len);
-        if (tagtree_is_entry_translatable(&tc, selected_item))
+        int entry_lang_id = tagtree_entry_get_lang_id(&tc, selected_item);
+        if (entry_lang_id >= 0)
         {
-            int lang_id = tagtree_get_translation_id(entry_name);
-            if (lang_id >= 0)
-            {
-                entry_name = (char*)P2STR(ID2P(lang_id));
-            }
+            entry_name = (char*)P2STR(ID2P(entry_lang_id));
         }
         return entry_name;
     }
@@ -468,13 +465,10 @@ static int update_dir(void)
         {
             char* tmp_title = tagtree_get_title(&tc);
             icon = filetype_get_icon(ATTR_DIRECTORY);
-            if (tagtree_is_title_translatable(&tc))
+            int title_lang_id = tagtree_title_get_lang_id(&tc);
+            if (title_lang_id >= 0)
             {
-                int lang_id = tagtree_get_translation_id(tmp_title);
-                if (lang_id >= 0)
-                {
-                    tmp_title = (char*)P2STR(ID2P(lang_id));
-                }
+                tmp_title = (char*)P2STR(ID2P(title_lang_id));
             }
             title = tmp_title;
         }
