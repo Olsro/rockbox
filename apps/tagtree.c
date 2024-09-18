@@ -79,7 +79,6 @@ struct tagentry {
     int newtable;
     int extraseek;
     int customaction;
-    int lang_id;
 };
 
 static struct tagentry* tagtree_get_entry(struct tree_context *c, int id);
@@ -206,7 +205,7 @@ struct match
 
 /* Statusbar text of the current view. */
 static char current_title[MAX_TAGS][128];
-static int current_lang_id[MAX_TAGS];
+static char* current_title_refs[MAX_TAGS];
 
 static struct menu_root * menus[TAGMENU_MAX_MENUS];
 static struct menu_root * menu;
@@ -782,19 +781,19 @@ static int get_condition(struct search_instruction *inst)
     return 1;
 }
 
-int tagtree_get_translation_id(char* temp)
+char* tagtree_get_translation(char* temp)
 {
     if (strlen(temp) <= 1)
     {
         /* We won't translate empty or single character strings */
-        return -1;
+        return temp;
     }
     int i = lang_english_to_id(temp);
     if (i < 0 || i >= LANG_LAST_INDEX_IN_ARRAY)
     {
-        return -1;
+        return temp;
     }
-    return i;
+    return ID2P(i);
 }
 
 /* example search:
@@ -1287,7 +1286,6 @@ static void tagtree_unload(struct tree_context *c)
             dptr->newtable = 0;
             dptr->extraseek = 0;
             dptr->customaction = ONPLAY_NO_CUSTOMACTION;
-            dptr->lang_id = -1;
             dptr++;
         }
     }
@@ -1466,29 +1464,6 @@ static void tcs_get_basename(struct tagcache_search *tcs, bool is_basename)
     }
 }
 
-int tagtree_title_get_lang_id(struct tree_context *c)
-{
-    switch (c->currtable)
-    {
-        case TABLE_ROOT:
-            return tagtree_get_translation_id(menu->title);
-
-        case TABLE_NAVIBROWSE:
-        case TABLE_ALLSUBENTRIES:
-            return current_lang_id[c->currextra];
-    }
-
-    return -1;
-}
-
-int tagtree_entry_get_lang_id(struct tree_context *c, int id)
-{
-    struct tagentry *entry = tagtree_get_entry(c, id);
-    if (!entry)
-        return -1;
-    return entry->lang_id;
-}
-
 static int retrieve_entries(struct tree_context *c, int offset, bool init)
 {
     char tcs_buf[TAGCACHE_BUFSZ];
@@ -1611,9 +1586,8 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
         if (offset == 0)
         {
             dptr->newtable = TABLE_ALLSUBENTRIES;
-            dptr->name = NULL; /* Will be translated later */
+            dptr->name = ID2P(LANG_TAGNAVI_ALL_TRACKS);
             dptr->customaction = ONPLAY_NO_CUSTOMACTION;
-            dptr->lang_id = LANG_TAGNAVI_ALL_TRACKS;
             dptr++;
             current_entry_count++;
             special_entry_count++;
@@ -1621,10 +1595,9 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
         if (offset <= 1)
         {
             dptr->newtable = TABLE_NAVIBROWSE;
-            dptr->name = NULL; /* Will be translated later */
+            dptr->name = ID2P(LANG_TAGNAVI_RANDOM);
             dptr->extraseek = -1;
             dptr->customaction = ONPLAY_NO_CUSTOMACTION;
-            dptr->lang_id = LANG_TAGNAVI_RANDOM;
             dptr++;
             current_entry_count++;
             special_entry_count++;
@@ -1647,7 +1620,6 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
         else
             dptr->extraseek = tcs.result_seek;
         dptr->customaction = ONPLAY_NO_CUSTOMACTION;
-        dptr->lang_id = -1;
 
         fmt = NULL;
         /* Check the format */
@@ -1850,21 +1822,21 @@ static int load_root(struct tree_context *c)
                 dptr->newtable = TABLE_NAVIBROWSE;
                 dptr->extraseek = i;
                 dptr->customaction = ONPLAY_NO_CUSTOMACTION;
-                dptr->lang_id = tagtree_get_translation_id(dptr->name);
+                dptr->name = tagtree_get_translation(dptr->name);
                 break;
 
             case menu_load:
                 dptr->newtable = TABLE_ROOT;
                 dptr->extraseek = menu->items[i]->link;
                 dptr->customaction = ONPLAY_NO_CUSTOMACTION;
-                dptr->lang_id = tagtree_get_translation_id(dptr->name);
+                dptr->name = tagtree_get_translation(dptr->name);
                 break;
 
             case menu_shuffle_songs:
                 dptr->newtable = TABLE_NAVIBROWSE;
                 dptr->extraseek = i;
                 dptr->customaction = ONPLAY_CUSTOMACTION_SHUFFLE_SONGS;
-                dptr->lang_id = tagtree_get_translation_id(dptr->name);
+                dptr->name = tagtree_get_translation(dptr->name);
                 break;
         }
 
@@ -2038,9 +2010,14 @@ int tagtree_enter(struct tree_context* c, bool is_visible)
                 csi = &menu->items[seek]->si;
                 c->currextra = 0;
 
-                strmemccpy(current_title[c->currextra], dptr->name,
+                if (P2ID((unsigned char*)dptr->name) < 0)
+                {
+                    strmemccpy(current_title[c->currextra], dptr->name,
                            sizeof(current_title[0]));
-                current_lang_id[c->currextra] = dptr->lang_id;
+                    current_title_refs[c->currextra] = NULL;
+                }
+                else
+                    current_title_refs[c->currextra] = dptr->name;
 
                 /* Read input as necessary. */
                 for (i = 0; i < csi->tagorder_count; i++)
@@ -2135,9 +2112,14 @@ int tagtree_enter(struct tree_context* c, bool is_visible)
                 c->dirlevel--;
 
             /* Update the statusbar title */
-            strmemccpy(current_title[c->currextra], dptr->name,
-                       sizeof(current_title[0]));
-            current_lang_id[c->currextra] = dptr->lang_id;
+                if (P2ID((unsigned char*)dptr->name) < 0)
+                {
+                    strmemccpy(current_title[c->currextra], dptr->name,
+                           sizeof(current_title[0]));
+                    current_title_refs[c->currextra] = NULL;
+                }
+                else
+                    current_title_refs[c->currextra] = dptr->name;
             break;
 
         default:
@@ -2618,29 +2600,68 @@ static struct tagentry* tagtree_get_entry(struct tree_context *c, int id)
     return &entry[realid];
 }
 
+int tagtree_title_get_lang_id(struct tree_context *c)
+{
+    int lang_id = -1;
+    switch (c->currtable)
+    {
+        case TABLE_ROOT:
+            lang_id = P2ID((unsigned char*)menu->title);
+            break;
+
+        case TABLE_NAVIBROWSE:
+        case TABLE_ALLSUBENTRIES:
+            if (current_title_refs[c->currextra])
+                lang_id = P2ID((unsigned char*)current_title_refs[c->currextra]);
+            break;
+    }
+    return lang_id;
+}
+
+int tagtree_entry_get_lang_id(struct tree_context *c, int id)
+{
+    struct tagentry *entry = tagtree_get_entry(c, id);
+    if (!entry)
+        return -1;
+    return P2ID((unsigned char*)entry->name);
+}
+
 char* tagtree_get_entry_name(struct tree_context *c, int id,
                                     char* buf, size_t bufsize)
 {
     struct tagentry *entry = tagtree_get_entry(c, id);
     if (!entry)
         return NULL;
-    strmemccpy(buf, entry->name, bufsize);
+    if (P2ID((unsigned char*)entry->name) >= 0)
+        strmemccpy(buf, (char*)P2STR((unsigned char*) entry->name), bufsize);
+    else
+        strmemccpy(buf, entry->name, bufsize);
     return buf;
 }
 
 char *tagtree_get_title(struct tree_context* c)
 {
+    char* title;
     switch (c->currtable)
     {
         case TABLE_ROOT:
-            return menu->title;
+            title = tagtree_get_translation(menu->title);
+            if (P2ID((unsigned char*)title) >= 0)
+                title = (char*)P2STR((unsigned char*) title);
+            break;
 
         case TABLE_NAVIBROWSE:
         case TABLE_ALLSUBENTRIES:
-            return current_title[c->currextra];
+            if (current_title_refs[c->currextra])
+                title = (char*)P2STR((unsigned char*) current_title_refs[c->currextra]);
+            else
+                title = current_title[c->currextra];
+            break;
+        default:
+            title = "?";
+            break;
     }
-
-    return "?";
+    return title;
 }
 
 int tagtree_get_attr(struct tree_context* c)

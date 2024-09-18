@@ -124,13 +124,7 @@ static const char* tree_get_filename(int selected_item, void *data,
 
     if (id3db)
     {
-        char* entry_name = tagtree_get_entry_name(&tc, selected_item, buffer, buffer_len);
-        int entry_lang_id = tagtree_entry_get_lang_id(&tc, selected_item);
-        if (entry_lang_id >= 0)
-        {
-            entry_name = (char*)P2STR(ID2P(entry_lang_id));
-        }
-        return entry_name;
+        return tagtree_get_entry_name(&tc, selected_item, buffer, buffer_len);
     }
     else
 #endif
@@ -219,7 +213,12 @@ static int tree_voice_cb(int selected_item, void * data)
     {
         attr = tagtree_get_attr(local_tc);
         name = tagtree_get_entry_name(local_tc, selected_item, buf, sizeof(buf));
-        /* TODO To enable voicing, we need to see if P2ID(name) is >= 0, and if so enqueue that phrase */
+        int entry_lang_id = tagtree_entry_get_lang_id(&tc, selected_item);
+        if (entry_lang_id >= 0)
+        {
+            /* TODO Voicing is not currently working */
+            /* Insert voicing code here */
+        }
     }
     else
 #endif
@@ -464,15 +463,14 @@ static int update_dir(void)
         if (show_path_in_browser == SHOW_PATH_FULL
             || show_path_in_browser == SHOW_PATH_CURRENT)
         {
-            char* tmp_title = tagtree_get_title(&tc);
-            icon = filetype_get_icon(ATTR_DIRECTORY);
             int title_lang_id = tagtree_title_get_lang_id(&tc);
             if (title_lang_id >= 0)
             {
-                tmp_title = (char*)P2STR(ID2P(title_lang_id));
+                /* TODO Voicing is not currently working */
+                /* Insert voicing code here */
             }
-            title = tmp_title;
-            /* TODO To enable voicing, we need to see if P2ID(name) is >= 0, and if so enqueue that phrase */
+            icon = filetype_get_icon(ATTR_DIRECTORY);
+            title = tagtree_get_title(&tc);
         }
     }
     else
