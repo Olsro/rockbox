@@ -16669,7 +16669,7 @@
     *: "Titre (avec durée de la piste)"
   </dest>
   <voice>
-    *: "Titre (avec durée de la piste)"
+    *: "Titre avec durée de la piste"
   </voice>
 </phrase>
 <phrase>
@@ -16711,7 +16711,7 @@
     *: "Rechercher par..."
   </dest>
   <voice>
-    *: "Rechercher par..."
+    *: "Rechercher par"
   </voice>
 </phrase>
 <phrase>
@@ -16837,7 +16837,7 @@
     *: "Les plus jouées (Nombre|Score)"
   </dest>
   <voice>
-    *: "Les plus jouées (Nombre|Score)"
+    *: "Les plus jouées par Nombre puis par Score"
   </voice>
 </phrase>
 <phrase>

@@ -16718,7 +16718,7 @@
     *: "Title (with track duration)"
   </dest>
   <voice>
-    *: "Title (with track duration)"
+    *: "Title with track duration"
   </voice>
 </phrase>
 <phrase>
@@ -16760,7 +16760,7 @@
     *: "Search by..."
   </dest>
   <voice>
-    *: "Search by..."
+    *: "Search by"
   </voice>
 </phrase>
 <phrase>
@@ -16886,7 +16886,7 @@
     *: "Most played (Plays|Score)"
   </dest>
   <voice>
-    *: "Most played (Plays|Score)"
+    *: "Most played by Plays then by Score"
   </voice>
 </phrase>
 <phrase>
